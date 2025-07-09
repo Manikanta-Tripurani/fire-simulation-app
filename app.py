@@ -1,6 +1,6 @@
 # ==============================================================================
-# FINAL, WORKING APP.PY SCRIPT (v13)
-# THIS VERSION HAS A COMPLETELY REWRITTEN AND STABLE SIMULATION ENGINE.
+# FINAL, WORKING APP.PY SCRIPT (v12)
+# BUILT WITH YOUR PROVEN SIMULATION ENGINE. THIS IS THE ONE.
 # ==============================================================================
 
 # --- 1. IMPORTS ---
@@ -19,28 +19,32 @@ st.set_page_config(page_title="AI Forest Fire Analysis", page_icon="🔥", layou
 @st.cache_data
 def load_data():
     try:
+        # Load all data files required for the simulation
         fuel_tif = rasterio.open('aligned_fuel.tif')
         profile = fuel_tif.profile
         fuel = fuel_tif.read(1)
         slope = rasterio.open('aligned_slope.tif').read(1)
         aspect = rasterio.open('aligned_aspect.tif').read(1)
         model = joblib.load('random_forest_fire_model.joblib')
-        return fuel, slope, aspect, model, profile
+        prediction_array = np.load('prediction_array.npy')
+        return fuel, slope, aspect, model, profile, prediction_array
     except Exception as e:
         st.error(f"CRITICAL ERROR loading data: {e}. Please check all required files are in your GitHub repository.")
-        return None, None, None, None, None
+        return None, None, None, None, None, None
 
 def create_rgb_image(fire_map):
+    # This function creates the visual image from the data map
     rgb_image = np.zeros((fire_map.shape[0], fire_map.shape[1], 3), dtype=np.uint8)
-    # Correct, fiery color scheme
-    rgb_image[fire_map == 0] = [200, 200, 200]    # Non-burnable
-    rgb_image[fire_map == 10] = [220, 255, 220]   # Grass
-    rgb_image[fire_map == 20] = [150, 200, 150]   # Shrub
-    rgb_image[fire_map == 30] = [0, 100, 0]       # Forest
-    rgb_image[fire_map == 40] = [255, 69, 0]      # Burning
-    rgb_image[fire_map == 50] = [40, 40, 40]      # Burnt
+    rgb_image[fire_map == 0] = [200, 200, 200]  # Non-burnable = Light Grey
+    rgb_image[fire_map == 10] = [220, 255, 220] # Grass = Light Green
+    rgb_image[fire_map == 20] = [150, 200, 150] # Shrub = Green
+    rgb_image[fire_map == 30] = [0, 100, 0]     # Forest = Dark Green
+    rgb_image[fire_map == 40] = [255, 100, 0]   # Burning = Bright Orange
+    rgb_image[fire_map == 50] = [40, 40, 40]       # Burnt = Dark Grey
     return rgb_image
 
+# ==========================================================
+# PASTE THIS COMPLETE FUNCTION INTO YOUR APP.PY
 # ==========================================================
 
 def display_details_page():
@@ -74,12 +78,12 @@ def display_details_page():
     *   *Technology Stack:* The entire project was built in *Python*, using libraries such as Scikit-learn, Rasterio, NumPy, and Streamlit for the interactive web application.
     """)
 # ==========================================================
-
 def display_prediction_page():
     st.header("Objective 1: Next-Day Fire Risk Prediction")
     try:
         prediction_image = Image.open('prediction_map.png')
         st.image(prediction_image, caption='Fire Risk Prediction Map', use_container_width=True)
+        # Add other logic from previous versions if needed
     except Exception as e:
         st.error(f"Could not load prediction map: {e}")
 
@@ -88,63 +92,64 @@ def display_simulation_page():
     with st.sidebar:
         st.header("Parameters")
         num_steps = st.slider("Simulation Steps (hours)", 5, 50, 20)
-        ignition_probability_threshold = st.slider("AI Ignition Threshold", 0.10, 0.90, 0.30) # Lowered default
-
+        ignition_probability_threshold = st.slider("AI Ignition Threshold", 0.10, 0.90, 0.60)
+        
     col1, col2 = st.columns([1, 2])
     with col1:
         st.subheader("Control Panel")
         start_button = st.button("Start Simulation", type="primary")
 
     if start_button:
-        fuel, slope, aspect, model, profile = load_data()
+        fuel, slope, aspect, model, profile, prediction_array = load_data()
         if fuel is None: st.stop()
 
-        with st.spinner('Running AI simulation and generating GIF...'):
+        with st.spinner('Running AI simulation and generating GIF... This may take a moment.'):
+            # --- BLOCK 1: YOUR PROVEN FIRE SETUP ---
             fire_map = fuel.copy()
             ignition_row, ignition_col = 1500, 1500
-            fire_map[ignition_row-5:ignition_row+5, ignition_col-5:ignition_col+5] = 40
-            
+            fire_map[ignition_row, ignition_col] = 40 # Set to "Burning"
             frames = []
+            
+            # Get map dimensions once
             map_height, map_width = fire_map.shape
 
             for step in range(num_steps):
-                frames.append(create_rgb_image(fire_map))
+                # --- THIS IS YOUR PROVEN SIMULATION ENGINE ---
+                frames.append(create_rgb_image(fire_map)) # Create a frame of the current state
                 
-                # --- THE NEW, REWRITTEN, AND CORRECT SIMULATION LOGIC ---
-                # Create a copy of the map to calculate the next state without interference
-                next_fire_map = fire_map.copy()
-                
-                # Iterate through every cell to determine its next state
-                for r in range(map_height):
-                    for c in range(map_width):
-                        # Rule 1: If a cell is currently burning, it will be burnt in the next step.
-                        if fire_map[r, c] == 40:
-                            next_fire_map[r, c] = 50
-                            continue
-                        
-                        # Rule 2: If a cell is burnable fuel, check its neighbors to see if it catches fire.
-                        if fire_map[r, c] in [10, 20, 30]:
-                            # Check all 8 neighbors of the current cell
-                            for dr in [-1, 0, 1]:
-                                for dc in [-1, 0, 1]:
-                                    if dr == 0 and dc == 0: continue
-                                    nr, nc = r + dr, c + dc
-                                    
-                                    # Check if the neighbor is valid AND IS CURRENTLY BURNING
-                                    if 0 <= nr < map_height and 0 <= nc < map_width and fire_map[nr, nc] == 40:
-                                        # It has a burning neighbor, so check the AI probability to spread
-                                        features = [[slope[r, c], aspect[r, c], fuel[r, c]]]
-                                        prediction_prob = model.predict_proba(features)[0][1]
-                                        
-                                        if prediction_prob > ignition_probability_threshold:
-                                            next_fire_map[r, c] = 40 # This cell catches fire
-                                            break # Stop checking other neighbors, it's already on fire
-                            # This inner break is to move to the next cell in the main loop
-                            if next_fire_map[r,c] == 40:
-                                continue
+                # Find all currently burning cells
+                burning_cells = np.argwhere(fire_map == 40)
+                newly_ignited = []
 
-                # After checking all cells, update the main map for the next iteration
-                fire_map = next_fire_map
+                # Loop through each burning cell to check its neighbors
+                for r, c in burning_cells:
+                    for dr in [-1, 0, 1]:
+                        for dc in [-1, 0, 1]:
+                            if dr == 0 and dc == 0: continue
+                            nr, nc = r + dr, c + dc
+                            
+                            # Check if neighbor is within map bounds and is burnable fuel
+                            if 0 <= nr < map_height and 0 <= nc < map_width and fire_map[nr, nc] in [10, 20, 30]:
+                                # Get the features for this neighbor cell
+                                features_for_prediction = [[
+                                    slope[nr, nc],
+                                    aspect[nr, nc],
+                                    fuel[nr, nc]
+                                ]]
+                                # Get the model's prediction
+                                prediction_prob = model.predict_proba(features_for_prediction)[0][1]
+                                
+                                if prediction_prob > ignition_probability_threshold:
+                                    newly_ignited.append((nr, nc))
+                
+                # --- YOUR PROVEN MAP UPDATE LOGIC ---
+                # Set the newly ignited cells to "Burning"
+                for r, c in newly_ignited:
+                    fire_map[r, c] = 40
+                
+                # Set all old burning cells to "Burned"
+                if burning_cells.size > 0:
+                    fire_map[burning_cells[:, 0], burning_cells[:, 1]] = 50
 
         # --- AFTER THE LOOP, DISPLAY RESULTS ---
         col1.success("Simulation Complete!")
@@ -159,11 +164,11 @@ def display_simulation_page():
                 st.download_button("Download Simulation GIF", file, "fire_simulation.gif", "image/gif")
 
 # --- 5. MAIN APP NAVIGATION ---
-# This part remains the same and is known to work correctly.
 if 'view' not in st.session_state: st.session_state.view = "Project Details"
 def set_view(): st.session_state.view = st.session_state.radio_view
 view_options = ("Project Details", "Fire Risk Prediction", "Fire Spread Simulation")
-st.sidebar.radio("Choose a view:", options=view_options, key='radio_view', on_change=set_view)
+default_index = view_options.index(st.session_state.view)
+st.sidebar.radio("Choose a view:", options=view_options, key='radio_view', on_change=set_view, index=default_index)
 
 if st.session_state.view == "Project Details": display_details_page()
 elif st.session_state.view == "Fire Risk Prediction": display_prediction_page()
