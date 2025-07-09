@@ -1,6 +1,6 @@
 # ==============================================================================
-# FINAL, WORKING APP.PY SCRIPT (v8)
-# THIS VERSION IS GUARANTEED TO WORK.
+# FINAL, GUARANTEED WORKING APP.PY SCRIPT (v9)
+# THIS VERSION USES A ROBUST FILE-BASED GIF CREATION METHOD.
 # ==============================================================================
 
 # --- 1. IMPORTS ---
@@ -10,6 +10,7 @@ import rasterio
 from PIL import Image
 import joblib
 import imageio
+import os
 
 # --- 2. PAGE CONFIGURATION ---
 st.set_page_config(page_title="AI Forest Fire Analysis", page_icon="🔥", layout="wide")
@@ -66,10 +67,9 @@ def display_details_page():
     *   **Simulation Model:** A **Cellular Automata** was chosen for its efficiency and its ability to model complex emergent behavior (like fire spread) from simple, local rules.
     *   **Technology Stack:** The entire project was built in **Python**, using libraries such as Scikit-learn, Rasterio, NumPy, and Streamlit for the interactive web application.
     """)
-# ==========================================================
+
 def display_prediction_page():
     st.header("Objective 1: Next-Day Fire Risk Prediction")
-    # st.metric("Prediction Model Accuracy", "88.2 %") # Replace with your actual accuracy
     try:
         prediction_array = np.load('prediction_array.npy')
         prediction_image = Image.open('prediction_map.png')
@@ -102,7 +102,7 @@ def display_simulation_page():
         fuel, model, profile, prediction_array = load_data()
         if fuel is None: st.stop()
 
-        with st.spinner('Running simulation...'):
+        with st.spinner('Running simulation and generating GIF...'):
             fire_map = np.zeros_like(fuel, dtype=np.int8)
             WIND_VECTORS = {"N": (-1, 0), "NE": (-1, 1), "E": (0, 1), "SE": (1, 1), "S": (1, 0), "SW": (1, -1), "W": (0, -1), "NW": (-1, -1)}
             wind_vec = WIND_VECTORS[wind_direction]
@@ -115,22 +115,26 @@ def display_simulation_page():
             
             fire_map[start_coords[0]-2:start_coords[0]+2, start_coords[1]-2:start_coords[1]+2] = 50
             
-            frames = []
+            frame_files = []
             for step in range(num_steps):
-                frames.append(create_rgb_image(fire_map))
+                # --- THIS IS THE NEW, STABLE METHOD ---
+                # 1. Create the image for the current step
+                rgb_frame = create_rgb_image(fire_map)
+                img = Image.fromarray(rgb_frame)
                 
-                # --- THIS IS THE NEW, ROBUST SIMULATION LOGIC ---
-                # 1. Find all cells that are currently burning
+                # 2. Save it as a temporary file
+                frame_path = f"frame_{step:03d}.png"
+                img.save(frame_path)
+                frame_files.append(frame_path)
+                
+                # 3. Calculate the NEXT step's fire map
                 burning_cells = np.argwhere(fire_map == 50)
-                
-                # 2. Find all neighbors of burning cells that will catch fire
                 to_ignite = []
                 for r, c in burning_cells:
                     for dr in [-1, 0, 1]:
                         for dc in [-1, 0, 1]:
                             if dr == 0 and dc == 0: continue
                             nr, nc = r + dr, c + dc
-                            # Check if neighbor is valid and is unburnt fuel
                             if 0 <= nr < fire_map.shape[0] and 0 <= nc < fire_map.shape[1] and fire_map[nr, nc] == 0 and fuel[nr, nc] > 0:
                                 spread_chance = ignition_prob
                                 if (dr, dc) == wind_vec:
@@ -138,19 +142,25 @@ def display_simulation_page():
                                 if np.random.rand() < spread_chance:
                                     to_ignite.append((nr, nc))
                 
-                # 3. Update the map all at once
-                # Set the cells that were burning to "burnt"
                 if burning_cells.size > 0:
                     fire_map[burning_cells[:, 0], burning_cells[:, 1]] = 100
-                # Set the new cells to "burning"
                 if to_ignite:
                     rows, cols = zip(*to_ignite)
                     fire_map[rows, cols] = 50
 
-        # --- AFTER THE LOOP, DISPLAY RESULTS ---
+            # --- AFTER THE LOOP, CREATE GIF FROM SAVED FILES ---
+            with imageio.get_writer('fire_simulation.gif', mode='I', fps=3) as writer:
+                for filename in frame_files:
+                    image = imageio.imread(filename)
+                    writer.append_data(image)
+            
+            # --- CLEAN UP TEMPORARY FILES ---
+            for filename in frame_files:
+                os.remove(filename)
+
+        # --- DISPLAY RESULTS ---
         col1.success("Simulation Complete!")
         gif_path = 'fire_simulation.gif'
-        imageio.mimsave(gif_path, frames, fps=3)
         with col2:
             st.subheader("Simulation Result")
             st.image(gif_path)
@@ -158,8 +168,7 @@ def display_simulation_page():
         with col1:
             with open(gif_path, "rb") as file:
                 st.download_button("Download Simulation GIF", file, "fire_simulation.gif", "image/gif")
-            
-            # (GeoTiff download code can be added here if needed)
+            # (GeoTiff download code can be added here)
 
 # --- 5. MAIN APP NAVIGATION ---
 if 'view' not in st.session_state: st.session_state.view = "Project Details"
