@@ -50,12 +50,12 @@ def create_legend():
         ul.legend-list { list-style-type: none; padding-left: 0; }
     </style>
     <ul class="legend-list">
-        <li><div class="legend-color-box" style="background-color: rgb(255, 69, 0);"></div> Burning</li>
-        <li><div class="legend-color-box" style="background-color: rgb(40, 40, 40);"></div> Burnt (Ash)</li>
+        <li><div class="legend-color-box" style="background-color: rgb(200,200,200);"></div>Non-Burnable</li>
+        <li><div class="legend-color-box" style="background-color: rgb(220,255,220);"></div> Grass(Unburnt)</li>
+        <li><div class="legend-color-box" style="background-color: rgb(150, 200, 150);"></div> shrub (Unburnt)</li>
         <li><div class="legend-color-box" style="background-color: rgb(0, 100, 0);"></div> Forest (Unburnt)</li>
-        <li><div class="legend-color-box" style="background-color: rgb(150, 200, 150);"></div> Shrub (Unburnt)</li>
-        <li><div class="legend-color-box" style="background-color: rgb(220, 255, 220);"></div> Grass (Unburnt)</li>
-        <li><div class="legend-color-box" style="background-color: rgb(200, 200, 200);"></div> Non-Burnable</li>
+        <li><div class="legend-color-box" style="background-color: rgb(255, 69, 0);"></div> Burning </li>
+        <li><div class="legend-color-box" style="background-color: rgb(40, 40, 40);"></div> Burnt</li>
     </ul>
     """
     st.markdown(legend_html, unsafe_allow_html=True)
