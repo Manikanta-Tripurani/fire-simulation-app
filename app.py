@@ -12,6 +12,32 @@ import joblib
 import imageio
 import os
 
+def create_legend():
+    """Displays a color-coded legend for the simulation map."""
+    st.subheader("Map Legend")
+    
+    legend_html = """
+    <style>
+        .legend-color-box {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+            border: 1px solid #444;
+        }
+    </style>
+    <ul>
+        <li><div class="legend-color-box" style="background-color: rgb(255, 69, 0);"></div> Burning</li>
+        <li><div class="legend-color-box" style="background-color: rgb(40, 40, 40);"></div> Burnt (Ash)</li>
+        <li><div class="legend-color-box" style="background-color: rgb(0, 100, 0);"></div> Forest (Unburnt)</li>
+        <li><div class="legend-color-box" style="background-color: rgb(150, 200, 150);"></div> Shrub (Unburnt)</li>
+        <li><div class="legend-color-box" style="background-color: rgb(220, 255, 220);"></div> Grass (Unburnt)</li>
+        <li><div class="legend-color-box" style="background-color: rgb(200, 200, 200);"></div> Non-Burnable</li>
+    </ul>
+    """
+    st.markdown(legend_html, unsafe_allow_html=True)
+
 # --- 2. PAGE CONFIGURATION ---
 st.set_page_config(page_title="AI Forest Fire Analysis", page_icon="🔥", layout="wide")
 
@@ -94,11 +120,14 @@ def display_simulation_page():
         num_steps = st.slider("Simulation Steps (hours)", 5, 50, 20)
         ignition_probability_threshold = st.slider("AI Ignition Threshold", 0.10, 0.90, 0.60)
         
-    col1, col2 = st.columns([1, 2])
+        col1, col2 = st.columns([1, 2])
     with col1:
         st.subheader("Control Panel")
         start_button = st.button("Start Simulation", type="primary")
 
+        # --- ADD THESE TWO LINES HERE ---
+        st.markdown("---") # This adds a nice separator line
+        create_legend()
     if start_button:
         fuel, slope, aspect, model, profile, prediction_array = load_data()
         if fuel is None: st.stop()
