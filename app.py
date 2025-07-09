@@ -1,6 +1,6 @@
 # ==============================================================================
-# FINAL, POLISHED APP.PY SCRIPT (v18)
-# INCLUDES ALL CATEGORY 1 UPGRADES AND FIXES THE INDENTATION ERROR.
+# FINAL, COMPLETE, AND POLISHED APP.PY SCRIPT (v19)
+# INCLUDES ALL CATEGORY 1 UPGRADES, THE LEGEND, AND ALL BUG FIXES.
 # ==============================================================================
 
 # --- 1. IMPORTS ---
@@ -42,8 +42,22 @@ def create_rgb_image(fire_map):
     return rgb_image
 
 def create_legend():
+    """Displays a color-coded legend for the simulation map."""
     st.subheader("Map Legend")
-    legend_html = """...""" # Your legend HTML here
+    legend_html = """
+    <style>
+        .legend-color-box { width: 20px; height: 20px; display: inline-block; vertical-align: middle; margin-right: 10px; border: 1px solid #444; }
+        ul.legend-list { list-style-type: none; padding-left: 0; }
+    </style>
+    <ul class="legend-list">
+        <li><div class="legend-color-box" style="background-color: rgb(255, 69, 0);"></div> Burning</li>
+        <li><div class="legend-color-box" style="background-color: rgb(40, 40, 40);"></div> Burnt (Ash)</li>
+        <li><div class="legend-color-box" style="background-color: rgb(0, 100, 0);"></div> Forest (Unburnt)</li>
+        <li><div class="legend-color-box" style="background-color: rgb(150, 200, 150);"></div> Shrub (Unburnt)</li>
+        <li><div class="legend-color-box" style="background-color: rgb(220, 255, 220);"></div> Grass (Unburnt)</li>
+        <li><div class="legend-color-box" style="background-color: rgb(200, 200, 200);"></div> Non-Burnable</li>
+    </ul>
+    """
     st.markdown(legend_html, unsafe_allow_html=True)
 
 # --- 4. UI PAGES / VIEWS ---
@@ -52,7 +66,7 @@ def display_details_page():
     st.markdown("---")
     st.subheader("Problem Statement (ISRO)")
     st.info("""
-    Uncontrolled forest fires represent a significant challenge... [and the rest of the problem statement]
+    Uncontrolled forest fires represent a significant challenge for government agencies tasked with preserving biodiversity and maintaining air quality. The spread of such fires is influenced by factors including weather conditions, terrain, and human activity. With modern geospatial technologies, datasets from ISRO are accessible, yet real-time simulation remains complex. This project aims to use AI/ML to help planners estimate damage, prioritize containment, and mitigate fire impacts.
     """)
     st.subheader("Our Solution: The Agni-AI Pipeline")
     st.markdown("""
@@ -88,13 +102,7 @@ def display_simulation_page():
     st.header("Objective 2: AI-Powered Fire Spread Simulation")
     with st.sidebar:
         st.header("Parameters")
-        num_steps = st.slider(
-            "Simulation Duration (Hours)", 
-            min_value=1, 
-            max_value=12, 
-            value=3, 
-            help="Set the total time for the fire spread simulation (1 to 12 hours)."
-        )
+        num_steps = st.slider("Simulation Duration (Hours)", min_value=1, max_value=12, value=3, help="Set the total time for the fire spread simulation (1 to 12 hours).")
         ignition_probability_threshold = st.slider("AI Ignition Threshold", 0.10, 0.90, 0.30)
 
     col1, col2 = st.columns([1, 2])
@@ -102,7 +110,7 @@ def display_simulation_page():
         st.subheader("Control Panel")
         start_button = st.button("Start Simulation", type="primary")
         st.markdown("---")
-        # create_legend() # You can uncomment this if you have the function defined
+        create_legend()
 
     if start_button:
         fuel, slope, aspect, model, profile, prediction_array = load_data()
@@ -110,7 +118,6 @@ def display_simulation_page():
 
         with st.spinner('Running AI simulation and generating GIF...'):
             fire_map = fuel.copy()
-            # ... rest of your proven simulation logic from v15 ...
             ignition_row, ignition_col = 1500, 1500
             fire_map[ignition_row-5:ignition_row+5, ignition_col-5:ignition_col+5] = 40
             frames = []
@@ -136,7 +143,8 @@ def display_simulation_page():
                     rows, cols = zip(*to_ignite)
                     fire_map[rows, cols] = 40
         
-        col1.success("Simulation Complete!")
+        with col1:
+            st.success("Simulation Complete!")
         gif_path = 'fire_simulation.gif'
         imageio.mimsave(gif_path, frames, fps=3)
         with col2:
