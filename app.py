@@ -29,7 +29,7 @@ def load_data():
         fuel_tif = rasterio.open('aligned_fuel.tif')
         profile = fuel_tif.profile
         fuel = fuel_tif.read(1)
-        model = joblib.load('random_forest_model.joblib')
+        model = joblib.load('random_forest_fire_model.joblib')
         prediction_array = np.load('prediction_array.npy')
         return fuel, model, profile, prediction_array
     except Exception as e:
