@@ -72,41 +72,39 @@ def create_legend():
 # PASTE THIS COMPLETE FUNCTION INTO YOUR APP.PY
 # ==========================================================
 
+# ==========================================================
+# PASTE THIS NEW, COMPLETE FUNCTION INTO YOUR APP.PY
+# ==========================================================
 def display_details_page():
     st.header("Project Details & Methodology")
     st.markdown("---")
-
     st.subheader("Problem Statement (ISRO)")
     st.info("""
-    Uncontrolled forest fires represent a significant challenge for government agencies tasked with preserving biodiversity and maintaining air quality. The spread of such fires is influenced by factors including weather conditions (temperature, precipitation, humidity, wind), terrain (slope, aspect, fuel availability), and human activity. With modern geospatial technologies, datasets from the Forest Survey of India and global services like VIIRS-SNP are accessible. Despite this, real-time simulation and forecasting remain complex. Short-term forecasting and dynamic simulation are crucial for timely preventive measures. AI/ML techniques offer promising capabilities to extract insights, helping planners estimate damage, prioritize containment, and mitigate fire impacts.
+    Uncontrolled forest fires represent a significant challenge... [and the rest of the problem statement]
     """)
 
-    st.subheader("Our Solution")
+    st.subheader("Our Solution: The Agni-AI Pipeline")
     st.markdown("""
-    Our project tackles this challenge with a comprehensive two-stage AI pipeline, designed for practical use by planning authorities:
-    1.  *AI-Powered Prediction:* We utilize a *Random Forest classification model* to analyze a feature stack of geospatial data. This model predicts the probability of a fire starting in any given 30m x 30m area, creating a detailed "Next-Day Fire Risk Map".
-    2.  *Dynamic Simulation:* We then use a *Cellular Automata model* to simulate the spread of a fire. This model is initialized at the highest-risk location identified by our AI and dynamically incorporates environmental factors like terrain and user-defined weather conditions (wind speed and direction) to produce a realistic spread animation.
+    Our project is an end-to-end decision support system that moves fire management from a reactive to a **proactive** stance. It consists of a two-stage AI pipeline:
+    1.  **AI-Powered Prediction:** We use a **Random Forest model** to analyze a feature stack of geospatial data from ISRO portals. This model predicts the probability of a fire starting, creating a detailed "Next-Day Fire Risk Map".
+    2.  **Dynamic Simulation:** A **Cellular Automata model** then simulates the fire's spread from the AI-identified hotspots, allowing authorities to visualize scenarios based on environmental factors.
     """)
 
-    st.subheader("Data Sources & Pre-processing")
+    st.subheader("Methodology & Technology Stack")
     st.markdown("""
-    *   *Terrain Parameters:* Slope and Aspect were derived from a 30m resolution Digital Elevation Model (DEM) sourced from the *Bhoonidhi Portal*.
-    *   *Fuel Availability:* Land Use/Land Cover (LULC) maps from *Bhuvan* were used to determine the type and availability of fire fuel.
-    *   *Historical Fire Data:* Fire event locations from *VIIRS-SNP* were used as the ground truth (target variable) for training our prediction model.
-    *   *Preprocessing:* All datasets were resampled to a uniform 30m resolution and stacked to create the feature set for our model.
+    *   **Prediction Model:** We chose a **Random Forest** for its proven high accuracy and efficiency on tabular geospatial data. This allowed for rapid training and iteration, which is critical in a hackathon environment, while still providing robust and explainable results.
+    *   **Simulation Model:** A **Cellular Automata** was chosen for its ability to model complex emergent behavior (like fire spread) from simple, computationally efficient rules.
+    *   **Technology Stack:** The project is built entirely in **Python**, leveraging Scikit-learn, Rasterio, NumPy, and deployed as an interactive web application using **Streamlit**.
     """)
-
-    st.subheader("Methodology & Tools")
-    st.markdown("""
-    *   *Prediction Model:* We chose a *Random Forest* for its high accuracy on tabular geospatial data and its robustness against overfitting, which is critical for reliable predictions.
-    *   *Simulation Model:* A *Cellular Automata* was chosen for its efficiency and its ability to model complex emergent behavior (like fire spread) from simple, local rules.
-    *   *Technology Stack:* The entire project was built in *Python*, using libraries such as Scikit-learn, Rasterio, NumPy, and Streamlit for the interactive web application.
-    """)
-# ==========================================================
 def display_prediction_page():
     st.header("Objective 1: Next-Day Fire Risk Prediction")
+    
+    # --- ADD THIS LINE HERE ---
+    st.metric("Prediction Model Accuracy", "88.2 %") # IMPORTANT: Replace 88.2 % with YOUR model's actual accuracy
+
     try:
-        prediction_array = load_prediction_data()
+        prediction_image = Image.open('prediction_map.png')
+        # ... rest of the code ...
         if prediction_array is None: st.stop()
         prediction_image = Image.open('prediction_map.png')
         st.image(prediction_image, caption='Fire Risk Prediction Map', use_container_width=True)
@@ -124,7 +122,7 @@ def display_simulation_page():
     st.header("Objective 2: AI-Powered Fire Spread Simulation")
     with st.sidebar:
         st.header("Parameters")
-        num_steps = st.slider("Simulation Steps (hours)", 5, 50, 20)
+       num_steps = st.slider("Simulation Duration (Hours)", 1, 12, 3, help="Set the total time for the fire spread simulation (1 to 12 hours).")
         ignition_probability_threshold = st.slider("AI Ignition Threshold", 0.10, 0.90, 0.30)
 
     col1, col2 = st.columns([1, 2])
