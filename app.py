@@ -50,7 +50,7 @@ def display_details_view():
     st.markdown("---")
     st.subheader("Problem Statement (ISRO)")
     st.info("""
-    Uncontrolled forest fires represent a significant challenge... [Copy and paste the full problem statement here]
+    Uncontrolled forest fires represent a significant challenge for government agencies tasked with preserving biodiversity and maintaining air quality. The spread of such fires is influenced by factors including weather conditions (temperature, precipitation, humidity, wind), terrain (slope, aspect, fuel availability), and human activity. With modern geospatial technologies, datasets from the Forest Survey of India and global services like VIIRS-SNP are accessible. Despite this, real-time simulation and forecasting remain complex. Short-term forecasting and dynamic simulation are crucial for timely preventive measures. AI/ML techniques offer promising capabilities to extract insights, helping planners estimate damage, prioritize containment, and mitigate fire impacts.
     """)
 
     st.subheader("Our Solution")
