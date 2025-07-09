@@ -1,3 +1,7 @@
+# ==============================================================================
+# FINAL, WORKING APP.PY SCRIPT (v11)
+# THIS VERSION IS FAST AND VISUALLY CORRECT.
+# ==============================================================================
 
 # --- 1. IMPORTS ---
 import streamlit as st
@@ -6,6 +10,7 @@ import rasterio
 from PIL import Image
 import joblib
 import imageio
+import os
 
 # --- 2. PAGE CONFIGURATION ---
 st.set_page_config(page_title="AI Forest Fire Analysis", page_icon="🔥", layout="wide")
@@ -61,7 +66,7 @@ def display_details_page():
     *   *Simulation Model:* A *Cellular Automata* was chosen for its efficiency and its ability to model complex emergent behavior (like fire spread) from simple, local rules.
     *   *Technology Stack:* The entire project was built in *Python*, using libraries such as Scikit-learn, Rasterio, NumPy, and Streamlit for the interactive web application.
     """)
-    
+
 def display_prediction_page():
     st.header("Objective 1: Next-Day Fire Risk Prediction")
     try:
@@ -82,9 +87,9 @@ def display_simulation_page():
     st.header("Objective 2: Fire Spread Simulation")
     with st.sidebar:
         st.header("Parameters")
-        num_steps = st.slider("Simulation Steps (hours)", 5, 50, 10)
-        ignition_prob = st.slider("Base Ignition Probability", 0.10, 0.90, 0.40)
-        wind_speed = st.slider("Wind Speed (km/h)", 0, 50, 15)
+        num_steps = st.slider("Simulation Steps (hours)", 5, 50, 20) # Increased default for better visuals
+        ignition_prob = st.slider("Base Ignition Probability", 0.10, 0.90, 0.5) # Increased default
+        wind_speed = st.slider("Wind Speed (km/h)", 0, 50, 20) # Increased default
         wind_direction = st.selectbox("Wind Direction", ("N", "NE", "E", "SE", "S", "SW", "W", "NW"))
 
     col1, col2 = st.columns([1, 2])
@@ -96,7 +101,7 @@ def display_simulation_page():
         fuel, model, profile, prediction_array = load_data()
         if fuel is None: st.stop()
 
-        with st.spinner('Running simulation...'):
+        with st.spinner('Running simulation and generating GIF...'):
             fire_map = np.zeros_like(fuel, dtype=np.int8)
             WIND_VECTORS = {"N": (-1, 0), "NE": (-1, 1), "E": (0, 1), "SE": (1, 1), "S": (1, 0), "SW": (1, -1), "W": (0, -1), "NW": (-1, -1)}
             wind_vec = WIND_VECTORS[wind_direction]
@@ -107,44 +112,39 @@ def display_simulation_page():
             else:
                 start_coords = (fire_map.shape[0] // 2, fire_map.shape[1] // 2)
             
-            # Ignite a slightly larger starting area to ensure spread
             fire_map[start_coords[0]-5:start_coords[0]+5, start_coords[1]-5:start_coords[1]+5] = 50
             
             frames = []
             for step in range(num_steps):
                 frames.append(create_rgb_image(fire_map))
                 
-                # --- THE NEW, REWRITTEN, AND CORRECT SIMULATION LOGIC ---
-                # Create a copy of the map to calculate the next state
-                next_fire_map = fire_map.copy()
+                # --- THE NEW, EFFICIENT, AND CORRECT SIMULATION LOGIC ---
+                # 1. Find all cells that are currently burning
+                burning_cells = np.argwhere(fire_map == 50)
                 
-                # Iterate through every single pixel
-                for r in range(fire_map.shape[0]):
-                    for c in range(fire_map.shape[1]):
-                        # Rule 1: A burning cell becomes a burnt cell
-                        if fire_map[r, c] == 50:
-                            next_fire_map[r, c] = 100
-                            continue
-
-                        # Rule 2: A fuel cell checks its neighbors to see if it should ignite
-                        if fire_map[r, c] == 0 and fuel[r,c] > 0:
-                            for dr in [-1, 0, 1]:
-                                for dc in [-1, 0, 1]:
-                                    if dr == 0 and dc == 0: continue
-                                    nr, nc = r + dr, c + dc
-                                    # Check if neighbor is valid AND is currently burning
-                                    if 0 <= nr < fire_map.shape[0] and 0 <= nc < fire_map.shape[1] and fire_map[nr, nc] == 50:
-                                        spread_chance = ignition_prob
-                                        if (dr, dc) == wind_vec:
-                                            spread_chance += (wind_speed / 50.0) * 0.4
-                                        if np.random.rand() < spread_chance:
-                                            next_fire_map[r, c] = 50
-                                            break # It caught fire, no need to check other neighbors
-                                if next_fire_map[r,c] == 50:
-                                    break # Move to the next cell
-
-                # Update the main map with the newly calculated state
-                fire_map = next_fire_map
+                # 2. Find all neighbors of burning cells that will catch fire
+                to_ignite = set() # Use a set to avoid duplicates
+                for r, c in burning_cells:
+                    for dr in [-1, 0, 1]:
+                        for dc in [-1, 0, 1]:
+                            if dr == 0 and dc == 0: continue
+                            nr, nc = r + dr, c + dc
+                            # Check if neighbor is valid AND is unburnt fuel
+                            if 0 <= nr < fire_map.shape[0] and 0 <= nc < fire_map.shape[1] and fire_map[nr, nc] == 0 and fuel[nr, nc] > 0:
+                                spread_chance = ignition_prob
+                                if (dr, dc) == wind_vec:
+                                    spread_chance += (wind_speed / 50.0) * 0.4
+                                if np.random.rand() < spread_chance:
+                                    to_ignite.add((nr, nc))
+                
+                # 3. Update the map all at once for the next step
+                # Set the cells that were burning to "burnt"
+                if burning_cells.size > 0:
+                    fire_map[burning_cells[:, 0], burning_cells[:, 1]] = 100
+                # Set the new cells to "burning"
+                if to_ignite:
+                    rows, cols = zip(*to_ignite)
+                    fire_map[rows, cols] = 50
 
         # --- AFTER THE LOOP, DISPLAY RESULTS ---
         col1.success("Simulation Complete!")
