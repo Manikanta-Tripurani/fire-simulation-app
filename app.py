@@ -50,7 +50,7 @@ def create_legend():
         ul.legend-list { list-style-type: none; padding-left: 0; }
     </style>
     <ul class="legend-list">
-        <li><div class="legend-color-box" style="background-color: rgb(255, 69, 0);"></div> Burning</li>
+        <li><div class="legend-color-box" style="background-color: rgb(255, 0, 0);"></div> Burning</li>
         <li><div class="legend-color-box" style="background-color: rgb(40, 40, 40);"></div> Burnt (Ash)</li>
         <li><div class="legend-color-box" style="background-color: rgb(0, 100, 0);"></div> Forest (Unburnt)</li>
         <li><div class="legend-color-box" style="background-color: rgb(150, 200, 150);"></div> Shrub (Unburnt)</li>
