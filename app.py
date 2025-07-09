@@ -114,14 +114,12 @@ def display_prediction_page():
         st.error(f"Could not load prediction files: {e}")
 
 # ==========================================================
-# PASTE THIS NEW, COMPLETE FUNCTION INTO YOUR APP.PY
-# It replaces your existing display_simulation_page function.
+# FINAL, CORRECTED FUNCTION. REPLACE YOUR OLD FUNCTION WITH THIS.
 # ==========================================================
 def display_simulation_page():
     st.header("Objective 2: AI-Powered Fire Spread Simulation")
 
     # --- Load Data Early ---
-    # We need the fuel map to find a valid ignition point
     fuel, slope, aspect, model, profile, prediction_array = load_data()
     if fuel is None:
         st.error("Could not load simulation data. The simulation cannot run.")
@@ -146,127 +144,109 @@ def display_simulation_page():
     with col1:
         st.subheader("Control Panel")
 
-        # --- FIX 1: DYNAMIC IGNITION POINT ---
-        # Check if an ignition point was set by the AI Prediction page
+        # Determine ignition point
         if 'ignition_point' in st.session_state:
             st.info(f"🔥 AI-selected ignition point: {st.session_state.ignition_point}")
             ignition_coords = st.session_state.ignition_point
         else:
             st.warning("No AI hotspot selected. Using a default high-risk location.")
-            # Fallback: Find the absolute highest risk point from the prediction array
             ignition_coords = np.unravel_index(np.argmax(prediction_array), prediction_array.shape)
 
-        # --- FIX 2: ENSURE IGNITION IS ON BURNABLE FUEL ---
-        # This is the critical fix for the "No Fire" anomaly
+        # Validate that the ignition point is on burnable fuel
         r, c = ignition_coords
-        if fuel[r, c] == 0: # Check if the point is on non-burnable land
+        if fuel[r, c] == 0:
             st.error(f"Ignition point {ignition_coords} is on non-burnable land. Finding nearest valid location...")
-            # Simple search for the nearest burnable pixel
             search_radius = 1
-            while True:
+            found = False
+            while search_radius <= 50 and not found:
                 r_min, r_max = max(0, r - search_radius), min(fuel.shape[0], r + search_radius + 1)
                 c_min, c_max = max(0, c - search_radius), min(fuel.shape[1], c + search_radius + 1)
                 sub_fuel = fuel[r_min:r_max, c_min:c_max]
                 burnable_points = np.argwhere(sub_fuel > 0)
                 if len(burnable_points) > 0:
-                    # Found a burnable point nearby
-                    new_r, new_c = burnable_points[0] # Take the first one found
+                    new_r, new_c = burnable_points[0]
                     ignition_coords = (r_min + new_r, c_min + new_c)
                     st.success(f"New ignition point found at: {ignition_coords}")
-                    break
+                    found = True
                 search_radius += 1
-                if search_radius > 50: # Failsafe
-                    st.error("Could not find any burnable land near the target. Cannot start simulation.")
-                    st.stop()
-        
-        # Now ignition_coords is guaranteed to be on burnable land
-        final_ignition_r, final_ignition_c = ignition_coords
+            if not found:
+                st.error("Could not find any burnable land near the target. Cannot start simulation.")
+                st.stop()
 
+        final_ignition_r, final_ignition_c = ignition_coords
         start_button = st.button("Start Simulation", type="primary")
         st.markdown("---")
         create_legend()
 
-    # --- FIX 3: PRE-SIMULATION VISUALIZATION ---
-    # Show the initial map with the ignition point marked BEFORE running
+    # --- This is the main logic block that has been fixed ---
+    # It now correctly handles the display in col2
+    
+    # Logic for when the page is WAITING for the button press
     if not start_button:
         with col2:
             st.subheader("Initial Map & Ignition Point")
-            # Create a temporary map to show the ignition point
             initial_display_map = fuel.copy()
-            # Mark the ignition point clearly (e.g., as "Burning")
+            # Mark the validated ignition point so the user can see it
             initial_display_map[final_ignition_r-2:final_ignition_r+2, final_ignition_c-2:final_ignition_c+2] = 40
             rgb_initial = create_rgb_image(initial_display_map)
             st.image(rgb_initial, caption=f"Map ready. Fire will start at {ignition_coords}.", use_container_width=True)
 
-    # --- SIMULATION LOGIC (Only runs when button is clicked) ---
+    # Logic for AFTER the button has been pressed
     if start_button:
+        # We will put all results content into col2
         with col2:
-            # The spinner should be over the results column
-            with st.spinner('Running AI simulation and generating GIF... This may take a moment.'):
+            with st.spinner('Running AI simulation and generating GIF...'):
+                # --- All the simulation code is now correctly nested ---
                 fire_map = fuel.copy()
                 WIND_VECTORS = {"N": (-1, 0), "NE": (-1, 1), "E": (0, 1), "SE": (1, 1), "S": (1, 0), "SW": (1, -1), "W": (0, -1), "NW": (-1, -1)}
                 wind_vec = WIND_VECTORS[wind_direction]
-
-                # Use the validated ignition coordinates
-                fire_map[final_ignition_r-5:final_ignition_r+5, final_ignition_c-5:final_ignition_c+5] = 40
-
+                
+                # Start fire at the validated ignition point
+                start_size = 5
+                r_start, r_end = max(0, final_ignition_r - start_size), min(fire_map.shape[0], final_ignition_r + start_size)
+                c_start, c_end = max(0, final_ignition_c - start_size), min(fire_map.shape[1], final_ignition_c + start_size)
+                fire_map[r_start:r_end, c_start:c_end] = np.where(fire_map[r_start:r_end, c_start:c_end] > 0, 40, 0)
+                
                 frames = []
                 map_height, map_width = fire_map.shape
 
                 for step in range(num_steps):
-                    # Important: create the frame *before* this step's logic
                     frames.append(create_rgb_image(fire_map))
                     burning_cells = np.argwhere(fire_map == 40)
-                    
-                    if burning_cells.size == 0: # Optimization: stop if fire is out
-                        break
-
+                    if burning_cells.size == 0: break
                     to_ignite = set()
-                    for r, c in burning_cells:
+                    for r_cell, c_cell in burning_cells:
                         for dr in [-1, 0, 1]:
                             for dc in [-1, 0, 1]:
                                 if dr == 0 and dc == 0: continue
-                                nr, nc = r + dr, c + dc
+                                nr, nc = r_cell + dr, c_cell + dc
                                 if 0 <= nr < map_height and 0 <= nc < map_width and fire_map[nr, nc] in [10, 20, 30]:
                                     features = [[slope[nr, nc], aspect[nr, nc], fuel[nr, nc]]]
-                                    # Use try-except for model prediction as a safeguard
-                                    try:
-                                        ai_prob = model.predict_proba(features)[0][1]
-                                    except:
-                                        ai_prob = 0 # Assume no risk if prediction fails
-
+                                    try: ai_prob = model.predict_proba(features)[0][1]
+                                    except: ai_prob = 0
                                     if ai_prob > ignition_probability_threshold:
-                                        spread_chance = 0.5
-                                        spread_chance += (temperature - 25) / 50.0 # Temp effect
-                                        spread_chance -= (humidity - 50) / 100.0 # Humidity effect (Corrected logic)
-                                        if (dr, dc) == wind_vec: # Wind effect
-                                            spread_chance += (wind_speed / 50.0) * 0.4
-
+                                        spread_chance = 0.5 + ((temperature - 25) / 50.0) - ((humidity - 50) / 100.0)
+                                        if (dr, dc) == wind_vec: spread_chance += (wind_speed / 50.0) * 0.4
                                         spread_chance = max(0.05, min(0.95, spread_chance))
                                         if np.random.rand() < spread_chance:
                                             to_ignite.add((nr, nc))
-
-                    # Update map state for the next step
-                    if burning_cells.size > 0:
-                        fire_map[burning_cells[:, 0], burning_cells[:, 1]] = 50 # Burnt
+                    if burning_cells.size > 0: fire_map[burning_cells[:, 0], burning_cells[:, 1]] = 50
                     if to_ignite:
                         rows, cols = zip(*to_ignite)
-                        fire_map[rows, cols] = 40 # Burning
-
-                # Add the final state to the GIF
+                        fire_map[rows, cols] = 40
+                
                 frames.append(create_rgb_image(fire_map))
-
-                # --- Display Results ---
                 gif_path = 'fire_simulation.gif'
                 imageio.mimsave(gif_path, frames, fps=3, loop=0)
-                
-                # These messages now appear in the correct place after simulation
-                col1.success("Simulation Complete!")
-                with open(gif_path, "rb") as file:
-                    col1.download_button("Download Simulation GIF", file, "fire_simulation.gif", "image/gif")
 
-                st.subheader("Simulation Result")
-                st.image(gif_path, use_container_width=True)
+            # FIX: After the spinner is done, display the results in the SAME column
+            st.subheader("Simulation Result")
+            st.image(gif_path, use_container_width=True)
+        
+        # Now update col1 with the success messages
+        col1.success("Simulation Complete!")
+        with open(gif_path, "rb") as file:
+            col1.download_button("Download Simulation GIF", file, "fire_simulation.gif", "image/gif")
 
 # --- 5. MAIN APP NAVIGATION ---
 if 'view' not in st.session_state: st.session_state.view = "Project Details"
