@@ -1,5 +1,5 @@
 # ==============================================================================
-# FINAL, CORRECTED APP.PY SCRIPT
+# FINAL, CORRECTED APP.PY SCRIPT (v3 - With Visualization Fix)
 # FOR ISRO HACKATHON
 # ==============================================================================
 
@@ -10,6 +10,7 @@ import rasterio
 from PIL import Image
 import joblib
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap # <-- IMPORT ADDED HERE
 import imageio
 import os
 
@@ -29,12 +30,12 @@ def load_data():
         fuel_tif = rasterio.open('aligned_fuel.tif')
         profile = fuel_tif.profile
         fuel = fuel_tif.read(1)
-        model = joblib.load('random_forest_fire_model.joblib')
+        model = joblib.load('random_forest_fire_model.joblib') # Corrected filename
         prediction_array = np.load('prediction_array.npy')
         return fuel, model, profile, prediction_array
     except Exception as e:
         st.error(f"Error loading data files: {e}")
-        st.info("Please ensure 'aligned_fuel.tif', 'random_forest_model.joblib', and 'prediction_array.npy' are in your GitHub repository.")
+        st.info("Please ensure 'aligned_fuel.tif', 'random_forest_fire_model.joblib', and 'prediction_array.npy' are in your GitHub repository.")
         return None, None, None, None
 
 def save_as_geotiff(final_grid, profile, output_path):
@@ -73,7 +74,7 @@ def display_prediction_view():
     st.markdown("""
     This map shows the predicted probability of a forest fire. Our model achieved an accuracy of **XX.X%** on the validation set.
     """)
-    # st.metric("Prediction Model Accuracy", "87.5 %") # Uncomment and add your real accuracy
+    # st.metric("Prediction Model Accuracy", "88.2 %") # Uncomment and add your real accuracy
 
     try:
         prediction_array = np.load('prediction_array.npy')
@@ -168,8 +169,14 @@ def display_simulation_view():
                         fire_map[rows, cols] = 50
                     fire_map[burning_cells[:, 0], burning_cells[:, 1]] = 100
                     
-                    fig, ax = plt.subplots()
-                    ax.imshow(fire_map, cmap='gist_heat_r', vmin=0, vmax=100)
+                    # --- NEW, IMPROVED VISUALIZATION BLOCK ---
+                    # Define a colormap: 0=white, 50=orange, 100=black
+                    cmap = ListedColormap(['white', 'orange', 'black'])
+                    bounds = [-1, 25, 75, 101] # Boundaries for colors: Unburnt, Burning, Burnt
+                    norm = plt.Normalize(vmin=0, vmax=100)
+
+                    fig, ax = plt.subplots(figsize=(8, 8))
+                    ax.imshow(fire_map, cmap=cmap, norm=norm) # Use the new colormap and norm
                     ax.set_title(f"Simulation Step {step + 1}/{num_steps}")
                     ax.axis('off')
                     image_placeholder.pyplot(fig)
