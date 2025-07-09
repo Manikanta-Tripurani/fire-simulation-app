@@ -1,7 +1,3 @@
-# ==============================================================================
-# FINAL, GUARANTEED WORKING APP.PY SCRIPT (v9)
-# THIS VERSION USES A ROBUST FILE-BASED GIF CREATION METHOD.
-# ==============================================================================
 
 # --- 1. IMPORTS ---
 import streamlit as st
@@ -10,7 +6,6 @@ import rasterio
 from PIL import Image
 import joblib
 import imageio
-import os
 
 # --- 2. PAGE CONFIGURATION ---
 st.set_page_config(page_title="AI Forest Fire Analysis", page_icon="🔥", layout="wide")
@@ -36,7 +31,6 @@ def create_rgb_image(fire_map):
     rgb_image[fire_map == 100] = [40, 40, 40]      # Burnt   = Dark Grey
     return rgb_image
 
-
 def display_details_page():
     st.header("Project Details & Methodology")
     st.markdown("---")
@@ -49,25 +43,25 @@ def display_details_page():
     st.subheader("Our Solution")
     st.markdown("""
     Our project tackles this challenge with a comprehensive two-stage AI pipeline, designed for practical use by planning authorities:
-    1.  **AI-Powered Prediction:** We utilize a **Random Forest classification model** to analyze a feature stack of geospatial data. This model predicts the probability of a fire starting in any given 30m x 30m area, creating a detailed "Next-Day Fire Risk Map".
-    2.  **Dynamic Simulation:** We then use a **Cellular Automata model** to simulate the spread of a fire. This model is initialized at the highest-risk location identified by our AI and dynamically incorporates environmental factors like terrain and user-defined weather conditions (wind speed and direction) to produce a realistic spread animation.
+    1.  *AI-Powered Prediction:* We utilize a *Random Forest classification model* to analyze a feature stack of geospatial data. This model predicts the probability of a fire starting in any given 30m x 30m area, creating a detailed "Next-Day Fire Risk Map".
+    2.  *Dynamic Simulation:* We then use a *Cellular Automata model* to simulate the spread of a fire. This model is initialized at the highest-risk location identified by our AI and dynamically incorporates environmental factors like terrain and user-defined weather conditions (wind speed and direction) to produce a realistic spread animation.
     """)
 
     st.subheader("Data Sources & Pre-processing")
     st.markdown("""
-    *   **Terrain Parameters:** Slope and Aspect were derived from a 30m resolution Digital Elevation Model (DEM) sourced from the **Bhoonidhi Portal**.
-    *   **Fuel Availability:** Land Use/Land Cover (LULC) maps from **Bhuvan** were used to determine the type and availability of fire fuel.
-    *   **Historical Fire Data:** Fire event locations from **VIIRS-SNP** were used as the ground truth (target variable) for training our prediction model.
-    *   **Preprocessing:** All datasets were resampled to a uniform 30m resolution and stacked to create the feature set for our model.
+    *   *Terrain Parameters:* Slope and Aspect were derived from a 30m resolution Digital Elevation Model (DEM) sourced from the *Bhoonidhi Portal*.
+    *   *Fuel Availability:* Land Use/Land Cover (LULC) maps from *Bhuvan* were used to determine the type and availability of fire fuel.
+    *   *Historical Fire Data:* Fire event locations from *VIIRS-SNP* were used as the ground truth (target variable) for training our prediction model.
+    *   *Preprocessing:* All datasets were resampled to a uniform 30m resolution and stacked to create the feature set for our model.
     """)
 
     st.subheader("Methodology & Tools")
     st.markdown("""
-    *   **Prediction Model:** We chose a **Random Forest** for its high accuracy on tabular geospatial data and its robustness against overfitting, which is critical for reliable predictions.
-    *   **Simulation Model:** A **Cellular Automata** was chosen for its efficiency and its ability to model complex emergent behavior (like fire spread) from simple, local rules.
-    *   **Technology Stack:** The entire project was built in **Python**, using libraries such as Scikit-learn, Rasterio, NumPy, and Streamlit for the interactive web application.
+    *   *Prediction Model:* We chose a *Random Forest* for its high accuracy on tabular geospatial data and its robustness against overfitting, which is critical for reliable predictions.
+    *   *Simulation Model:* A *Cellular Automata* was chosen for its efficiency and its ability to model complex emergent behavior (like fire spread) from simple, local rules.
+    *   *Technology Stack:* The entire project was built in *Python*, using libraries such as Scikit-learn, Rasterio, NumPy, and Streamlit for the interactive web application.
     """)
-
+    
 def display_prediction_page():
     st.header("Objective 1: Next-Day Fire Risk Prediction")
     try:
@@ -102,7 +96,7 @@ def display_simulation_page():
         fuel, model, profile, prediction_array = load_data()
         if fuel is None: st.stop()
 
-        with st.spinner('Running simulation and generating GIF...'):
+        with st.spinner('Running simulation...'):
             fire_map = np.zeros_like(fuel, dtype=np.int8)
             WIND_VECTORS = {"N": (-1, 0), "NE": (-1, 1), "E": (0, 1), "SE": (1, 1), "S": (1, 0), "SW": (1, -1), "W": (0, -1), "NW": (-1, -1)}
             wind_vec = WIND_VECTORS[wind_direction]
@@ -113,54 +107,49 @@ def display_simulation_page():
             else:
                 start_coords = (fire_map.shape[0] // 2, fire_map.shape[1] // 2)
             
-            fire_map[start_coords[0]-2:start_coords[0]+2, start_coords[1]-2:start_coords[1]+2] = 50
+            # Ignite a slightly larger starting area to ensure spread
+            fire_map[start_coords[0]-5:start_coords[0]+5, start_coords[1]-5:start_coords[1]+5] = 50
             
-            frame_files = []
+            frames = []
             for step in range(num_steps):
-                # --- THIS IS THE NEW, STABLE METHOD ---
-                # 1. Create the image for the current step
-                rgb_frame = create_rgb_image(fire_map)
-                img = Image.fromarray(rgb_frame)
+                frames.append(create_rgb_image(fire_map))
                 
-                # 2. Save it as a temporary file
-                frame_path = f"frame_{step:03d}.png"
-                img.save(frame_path)
-                frame_files.append(frame_path)
+                # --- THE NEW, REWRITTEN, AND CORRECT SIMULATION LOGIC ---
+                # Create a copy of the map to calculate the next state
+                next_fire_map = fire_map.copy()
                 
-                # 3. Calculate the NEXT step's fire map
-                burning_cells = np.argwhere(fire_map == 50)
-                to_ignite = []
-                for r, c in burning_cells:
-                    for dr in [-1, 0, 1]:
-                        for dc in [-1, 0, 1]:
-                            if dr == 0 and dc == 0: continue
-                            nr, nc = r + dr, c + dc
-                            if 0 <= nr < fire_map.shape[0] and 0 <= nc < fire_map.shape[1] and fire_map[nr, nc] == 0 and fuel[nr, nc] > 0:
-                                spread_chance = ignition_prob
-                                if (dr, dc) == wind_vec:
-                                    spread_chance += (wind_speed / 50.0) * 0.4
-                                if np.random.rand() < spread_chance:
-                                    to_ignite.append((nr, nc))
-                
-                if burning_cells.size > 0:
-                    fire_map[burning_cells[:, 0], burning_cells[:, 1]] = 100
-                if to_ignite:
-                    rows, cols = zip(*to_ignite)
-                    fire_map[rows, cols] = 50
+                # Iterate through every single pixel
+                for r in range(fire_map.shape[0]):
+                    for c in range(fire_map.shape[1]):
+                        # Rule 1: A burning cell becomes a burnt cell
+                        if fire_map[r, c] == 50:
+                            next_fire_map[r, c] = 100
+                            continue
 
-            # --- AFTER THE LOOP, CREATE GIF FROM SAVED FILES ---
-            with imageio.get_writer('fire_simulation.gif', mode='I', fps=3) as writer:
-                for filename in frame_files:
-                    image = imageio.imread(filename)
-                    writer.append_data(image)
-            
-            # --- CLEAN UP TEMPORARY FILES ---
-            for filename in frame_files:
-                os.remove(filename)
+                        # Rule 2: A fuel cell checks its neighbors to see if it should ignite
+                        if fire_map[r, c] == 0 and fuel[r,c] > 0:
+                            for dr in [-1, 0, 1]:
+                                for dc in [-1, 0, 1]:
+                                    if dr == 0 and dc == 0: continue
+                                    nr, nc = r + dr, c + dc
+                                    # Check if neighbor is valid AND is currently burning
+                                    if 0 <= nr < fire_map.shape[0] and 0 <= nc < fire_map.shape[1] and fire_map[nr, nc] == 50:
+                                        spread_chance = ignition_prob
+                                        if (dr, dc) == wind_vec:
+                                            spread_chance += (wind_speed / 50.0) * 0.4
+                                        if np.random.rand() < spread_chance:
+                                            next_fire_map[r, c] = 50
+                                            break # It caught fire, no need to check other neighbors
+                                if next_fire_map[r,c] == 50:
+                                    break # Move to the next cell
 
-        # --- DISPLAY RESULTS ---
+                # Update the main map with the newly calculated state
+                fire_map = next_fire_map
+
+        # --- AFTER THE LOOP, DISPLAY RESULTS ---
         col1.success("Simulation Complete!")
         gif_path = 'fire_simulation.gif'
+        imageio.mimsave(gif_path, frames, fps=3)
         with col2:
             st.subheader("Simulation Result")
             st.image(gif_path)
