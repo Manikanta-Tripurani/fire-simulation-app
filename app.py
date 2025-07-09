@@ -179,19 +179,27 @@ def display_simulation_page():
                 # Set all old burning cells to "Burned"
                 if burning_cells.size > 0:
                     fire_map[burning_cells[:, 0], burning_cells[:, 1]] = 50
-
+        # ==========================================================
+        
         # --- AFTER THE LOOP, DISPLAY RESULTS ---
         col1.success("Simulation Complete!")
+        
+        # Save the GIF file
         gif_path = 'fire_simulation.gif'
         imageio.mimsave(gif_path, frames, fps=3)
+
+        # Display the GIF in the large right-hand column (col2)
         with col2:
             st.subheader("Simulation Result")
             st.image(gif_path)
 
+        # Display the download buttons in the small left-hand column (col1)
         with col1:
             with open(gif_path, "rb") as file:
                 st.download_button("Download Simulation GIF", file, "fire_simulation.gif", "image/gif")
-
+            
+            # Note: GeoTiff download will only contain the final frame.
+            # You can add the GeoTiff download button here if needed.
 # --- 5. MAIN APP NAVIGATION ---
 if 'view' not in st.session_state: st.session_state.view = "Project Details"
 def set_view(): st.session_state.view = st.session_state.radio_view
