@@ -1,6 +1,6 @@
 # ==============================================================================
-# FINAL, UPGRADED APP.PY SCRIPT (v20)
-# INCLUDES CATEGORY 1 & 2 UPGRADES (ACCURACY, TEXT, WEATHER)
+# FINAL, COMPLETE, AND UPGRADED APP.PY SCRIPT (v22)
+# INCLUDES ALL CATEGORY 1 & 2 UPGRADES, LEGEND, AND ALL BUG FIXES.
 # ==============================================================================
 
 # --- 1. IMPORTS ---
@@ -18,7 +18,6 @@ st.set_page_config(page_title="Agni-AI Fire Simulation", page_icon="🔥", layou
 # --- 3. HELPER FUNCTIONS ---
 @st.cache_data
 def load_data():
-    # ... (load_data function remains the same)
     try:
         fuel_tif = rasterio.open('aligned_fuel.tif')
         profile = fuel_tif.profile
@@ -29,11 +28,10 @@ def load_data():
         prediction_array = np.load('prediction_array.npy')
         return fuel, slope, aspect, model, profile, prediction_array
     except Exception as e:
-        st.error(f"CRITICAL ERROR loading data: {e}.")
+        st.error(f"CRITICAL ERROR loading data: {e}. Please check all required files are in your GitHub repository.")
         return None, None, None, None, None, None
 
 def create_rgb_image(fire_map):
-    # ... (create_rgb_image function remains the same)
     rgb_image = np.zeros((fire_map.shape[0], fire_map.shape[1], 3), dtype=np.uint8)
     rgb_image[fire_map == 0] = [200, 200, 200]
     rgb_image[fire_map == 10] = [220, 255, 220]
@@ -44,12 +42,23 @@ def create_rgb_image(fire_map):
     return rgb_image
 
 def create_legend():
-    # ... (create_legend function remains the same)
+    """Displays a color-coded legend for the simulation map."""
     st.subheader("Map Legend")
-    legend_html = """...""" # Your legend HTML here
+    legend_html = """
+    <style>
+        .legend-color-box { width: 20px; height: 20px; display: inline-block; vertical-align: middle; margin-right: 10px; border: 1px solid #444; }
+        ul.legend-list { list-style-type: none; padding-left: 0; }
+    </style>
+    <ul class="legend-list">
+        <li><div class="legend-color-box" style="background-color: rgb(255, 69, 0);"></div> Burning</li>
+        <li><div class="legend-color-box" style="background-color: rgb(40, 40, 40);"></div> Burnt (Ash)</li>
+        <li><div class="legend-color-box" style="background-color: rgb(0, 100, 0);"></div> Forest (Unburnt)</li>
+        <li><div class="legend-color-box" style="background-color: rgb(150, 200, 150);"></div> Shrub (Unburnt)</li>
+        <li><div class="legend-color-box" style="background-color: rgb(220, 255, 220);"></div> Grass (Unburnt)</li>
+        <li><div class="legend-color-box" style="background-color: rgb(200, 200, 200);"></div> Non-Burnable</li>
+    </ul>
+    """
     st.markdown(legend_html, unsafe_allow_html=True)
-
-
 # ==========================================================
 # PASTE THIS NEW, COMPLETE FUNCTION INTO YOUR APP.PY
 # This has all the professional text you need.
@@ -88,9 +97,8 @@ def display_details_page():
 # ==========================================================
 
 def display_prediction_page():
-    # ... (The complete prediction page from v19)
     st.header("Objective 1: Next-Day Fire Risk Prediction")
-    st.metric("Prediction Model Accuracy", "88.2 %")
+    st.metric("Prediction Model Accuracy", "88.2 %") # IMPORTANT: Replace with your actual accuracy
     try:
         prediction_array = np.load('prediction_array.npy')
         prediction_image = Image.open('prediction_map.png')
@@ -108,7 +116,7 @@ def display_prediction_page():
 def display_simulation_page():
     st.header("Objective 2: AI-Powered Fire Spread Simulation")
     with st.sidebar:
-        st.header("Parameters")
+        st.header("Simulation Parameters")
         num_steps = st.slider("Simulation Duration (Hours)", 1, 12, 3, help="Set the total time for the fire spread simulation.")
         ignition_probability_threshold = st.slider("AI Ignition Threshold", 0.10, 0.90, 0.30, help="A cell must have an AI risk score above this to even be considered for ignition.")
         
@@ -124,7 +132,7 @@ def display_simulation_page():
         st.subheader("Control Panel")
         start_button = st.button("Start Simulation", type="primary")
         st.markdown("---")
-        # create_legend()
+        create_legend() # The legend is now correctly placed here
 
     if start_button:
         fuel, slope, aspect, model, profile, prediction_array = load_data()
@@ -156,11 +164,11 @@ def display_simulation_page():
                                 ai_prob = model.predict_proba(features)[0][1]
                                 
                                 if ai_prob > ignition_probability_threshold:
-                                    # --- THE NEW ADVANCED SPREAD LOGIC ---
+                                    # The advanced spread logic with weather
                                     spread_chance = 0.5 
-                                    spread_chance += (temperature - 25) / 50.0
-                                    spread_chance += (50 - humidity) / 100.0
-                                    if (dr, dc) == wind_vec:
+                                    spread_chance += (temperature - 25) / 50.0 # Temp effect
+                                    spread_chance += (50 - humidity) / 100.0 # Humidity effect
+                                    if (dr, dc) == wind_vec: # Wind effect
                                         spread_chance += (wind_speed / 50.0) * 0.4
                                     
                                     spread_chance = max(0.05, min(0.95, spread_chance))
