@@ -60,26 +60,42 @@ def create_legend():
     """
     st.markdown(legend_html, unsafe_allow_html=True)
 
-# --- 4. UI PAGES / VIEWS ---
+# ==========================================================
+# PASTE THIS NEW, COMPLETE FUNCTION INTO YOUR APP.PY
+# This has all the professional text you need.
+# ==========================================================
+
 def display_details_page():
     st.header("Project Details & Methodology")
     st.markdown("---")
+
     st.subheader("Problem Statement (ISRO)")
     st.info("""
     Uncontrolled forest fires represent a significant challenge for government agencies tasked with preserving biodiversity and maintaining air quality. The spread of such fires is influenced by factors including weather conditions, terrain, and human activity. With modern geospatial technologies, datasets from ISRO are accessible, yet real-time simulation remains complex. This project aims to use AI/ML to help planners estimate damage, prioritize containment, and mitigate fire impacts.
     """)
+
     st.subheader("Our Solution: The Agni-AI Pipeline")
     st.markdown("""
-    Our project is an end-to-end decision support system that moves fire management from a reactive to a **proactive** stance. It consists of a two-stage AI pipeline:
-    1.  **AI-Powered Prediction:** We use a **Random Forest model** to analyze a feature stack of geospatial data from ISRO portals. This model predicts the probability of a fire starting, creating a detailed "Next-Day Fire Risk Map".
-    2.  **Dynamic Simulation:** A **Cellular Automata model** then simulates the fire's spread from the AI-identified hotspots, allowing authorities to visualize scenarios based on environmental factors.
+    Our project, **Agni-AI**, is an end-to-end decision support system that moves fire management from a reactive to a **proactive** stance. It addresses the entire lifecycle of a fire event through a two-stage AI pipeline:
+    1.  **AI-Powered Prediction:** We use a **Random Forest classification model** to analyze a feature stack of geospatial data from ISRO portals. This model predicts the probability of a fire starting in any given 30m x 30m area, creating a detailed "Next-Day Fire Risk Map".
+    2.  **Dynamic Simulation:** A **Cellular Automata model** then simulates the spread of a fire. This model can be initialized at the highest-risk location identified by our AI and dynamically incorporates environmental factors to produce a realistic spread animation.
     """)
+    
+    st.subheader("Data Sources & Pre-processing")
+    st.markdown("""
+    *   **Terrain Parameters:** Slope and Aspect were derived from a 30m resolution Digital Elevation Model (DEM) sourced from the **Bhoonidhi Portal**.
+    *   **Fuel Availability:** Land Use/Land Cover (LULC) maps from **Bhuvan** were used to determine the type and availability of fire fuel.
+    *   **Historical Fire Data:** Fire event locations from **VIIRS-SNP** were used as the ground truth (target variable) for training our prediction model.
+    *   **Preprocessing:** All datasets were resampled to a uniform 30m resolution and stacked to create the feature set for our model.
+    """)
+
     st.subheader("Methodology & Technology Stack")
     st.markdown("""
     *   **Prediction Model:** We chose a **Random Forest** for its proven high accuracy and efficiency on tabular geospatial data. This allowed for rapid training and iteration, which is critical in a hackathon environment, while still providing robust and explainable results.
     *   **Simulation Model:** A **Cellular Automata** was chosen for its ability to model complex emergent behavior (like fire spread) from simple, computationally efficient rules.
     *   **Technology Stack:** The project is built entirely in **Python**, leveraging Scikit-learn, Rasterio, NumPy, and deployed as an interactive web application using **Streamlit**.
     """)
+# ==========================================================
 
 def display_prediction_page():
     st.header("Objective 1: Next-Day Fire Risk Prediction")
