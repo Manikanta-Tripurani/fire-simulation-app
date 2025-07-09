@@ -1,6 +1,6 @@
 # ==============================================================================
-# FINAL, WORKING APP.PY SCRIPT (v15)
-# THIS VERSION IS FAST AND VISUALLY CORRECT.
+# FINAL, PUBLIC-READY APP.PY SCRIPT (v16)
+# THIS VERSION IS MEMORY-EFFICIENT AND ROBUST FOR PUBLIC ACCESS.
 # ==============================================================================
 
 # --- 1. IMPORTS ---
@@ -13,11 +13,23 @@ import imageio
 import os
 
 # --- 2. PAGE CONFIGURATION ---
-st.set_page_config(page_title="AI Forest Fire Analysis", page_icon="🔥", layout="wide")
+st.set_page_config(page_title="Agni-AI Fire Simulation", page_icon="🔥", layout="wide")
 
-# --- 3. HELPER FUNCTIONS ---
+# --- 3. DATA LOADING FUNCTIONS (MEMORY EFFICIENT) ---
+
+# Cache prediction-specific data
 @st.cache_data
-def load_data():
+def load_prediction_data():
+    try:
+        prediction_array = np.load('prediction_array.npy')
+        return prediction_array
+    except Exception as e:
+        st.error(f"Error loading prediction data: {e}")
+        return None
+
+# Cache simulation-specific data
+@st.cache_data
+def load_simulation_data():
     try:
         fuel_tif = rasterio.open('aligned_fuel.tif')
         profile = fuel_tif.profile
@@ -27,12 +39,12 @@ def load_data():
         model = joblib.load('random_forest_fire_model.joblib')
         return fuel, slope, aspect, model, profile
     except Exception as e:
-        st.error(f"CRITICAL ERROR loading data: {e}. Please check all required files are in your GitHub repository.")
+        st.error(f"Error loading simulation data files: {e}")
         return None, None, None, None, None
 
+# --- 4. HELPER FUNCTIONS ---
 def create_rgb_image(fire_map):
     rgb_image = np.zeros((fire_map.shape[0], fire_map.shape[1], 3), dtype=np.uint8)
-    # Correct, fiery color scheme
     rgb_image[fire_map == 0] = [200, 200, 200]
     rgb_image[fire_map == 10] = [220, 255, 220]
     rgb_image[fire_map == 20] = [150, 200, 150]
@@ -79,7 +91,22 @@ def display_details_page():
 
 def display_prediction_page():
     st.header("Objective 1: Next-Day Fire Risk Prediction")
-    # ... Your prediction page logic ...
+    # st.metric("Prediction Model Accuracy", "88.2 %")
+    try:
+        prediction_array = load_prediction_data()
+        if prediction_array is None: st.stop()
+        
+        prediction_image = Image.open('prediction_map.png')
+        st.image(prediction_image, caption='Fire Risk Prediction Map', use_container_width=True)
+        st.markdown("---")
+        hotspot_coords = np.unravel_index(np.argmax(prediction_array), prediction_array.shape)
+        st.info(f"AI has identified the highest fire risk at coordinates: **{hotspot_coords}**")
+        if st.button("Simulate Fire from Highest Risk Zone", type="primary"):
+            st.session_state.ignition_point = hotspot_coords
+            st.session_state.view = "Fire Spread Simulation"
+            st.rerun()
+    except Exception as e:
+        st.error(f"Could not load prediction files: {e}")
 
 def display_simulation_page():
     st.header("Objective 2: AI-Powered Fire Spread Simulation")
@@ -94,68 +121,57 @@ def display_simulation_page():
         start_button = st.button("Start Simulation", type="primary")
 
     if start_button:
-        fuel, slope, aspect, model, profile = load_data()
+        fuel, slope, aspect, model, profile = load_simulation_data()
         if fuel is None: st.stop()
 
         with st.spinner('Running AI simulation and generating GIF...'):
             fire_map = fuel.copy()
-            ignition_row, ignition_col = 1500, 1500
-            fire_map[ignition_row-5:ignition_row+5, ignition_col-5:ignition_col+5] = 40
+            if 'ignition_point' in st.session_state and st.session_state.ignition_point is not None:
+                start_coords = st.session_state.ignition_point
+                st.session_state.ignition_point = None
+            else:
+                start_coords = (1500, 1500) # Default ignition point
+            
+            fire_map[start_coords[0]-5:start_coords[0]+5, start_coords[1]-5:start_coords[1]+5] = 40
             
             frames = []
             map_height, map_width = fire_map.shape
 
             for step in range(num_steps):
                 frames.append(create_rgb_image(fire_map))
-                
-                # --- THIS IS YOUR EFFICIENT AND NOW CORRECT LOGIC ---
-                # 1. Find all cells that are currently burning
+                next_fire_map = fire_map.copy()
                 burning_cells = np.argwhere(fire_map == 40)
                 
-                # 2. Find all neighbors of burning cells that will catch fire
-                to_ignite = set() # Use a set to prevent duplicates
                 for r, c in burning_cells:
+                    next_fire_map[r, c] = 50
                     for dr in [-1, 0, 1]:
                         for dc in [-1, 0, 1]:
                             if dr == 0 and dc == 0: continue
                             nr, nc = r + dr, c + dc
-                            
-                            # Check if neighbor is valid AND is burnable fuel
                             if 0 <= nr < map_height and 0 <= nc < map_width and fire_map[nr, nc] in [10, 20, 30]:
                                 features = [[slope[nr, nc], aspect[nr, nc], fuel[nr, nc]]]
                                 prediction_prob = model.predict_proba(features)[0][1]
-                                
                                 if prediction_prob > ignition_probability_threshold:
-                                    to_ignite.add((nr, nc))
-                
-                # 3. Update the map all at once for the next step. This is the critical fix.
-                # First, set the cells that were burning to "burnt"
-                if burning_cells.size > 0:
-                    fire_map[burning_cells[:, 0], burning_cells[:, 1]] = 50
-                # Then, set the new cells to "burning"
-                if to_ignite:
-                    rows, cols = zip(*to_ignite)
-                    fire_map[rows, cols] = 40
+                                    next_fire_map[nr, nc] = 40
+                fire_map = next_fire_map
 
-        # --- AFTER THE LOOP, DISPLAY RESULTS ---
+        # --- Display Results ---
         col1.success("Simulation Complete!")
         gif_path = 'fire_simulation.gif'
         imageio.mimsave(gif_path, frames, fps=3)
         with col2:
             st.subheader("Simulation Result")
             st.image(gif_path)
-
         with col1:
             with open(gif_path, "rb") as file:
                 st.download_button("Download Simulation GIF", file, "fire_simulation.gif", "image/gif")
-            # (GeoTiff download code can be added here)
 
-# --- 5. MAIN APP NAVIGATION ---
-# This part is stable and correct.
+# --- 6. MAIN APP NAVIGATION ---
 if 'view' not in st.session_state: st.session_state.view = "Project Details"
 def set_view(): st.session_state.view = st.session_state.radio_view
 view_options = ("Project Details", "Fire Risk Prediction", "Fire Spread Simulation")
-st.sidebar.radio("Choose a view:", options=view_options, key='radio_view', on_change=set_view)
+default_index = view_options.index(st.session_state.view)
+st.sidebar.radio("Choose a view:", options=view_options, key='radio_view', on_change=set_view, index=default_index)
 
 if st.session_state.view == "Project Details": display_details_page()
 elif st.session_state.view == "Fire Risk Prediction": display_prediction_page()
