@@ -31,17 +31,23 @@ def load_data():
     except Exception as e:
         st.error(f"CRITICAL ERROR loading data: {e}. Please check all required files are in your GitHub repository.")
         return None, None, None, None, None, None
-
+        
 def create_rgb_image(fire_map):
     # This function creates the visual image from the data map
     rgb_image = np.zeros((fire_map.shape[0], fire_map.shape[1], 3), dtype=np.uint8)
-    rgb_image[fire_map == 0] = [200, 200, 200]  # Non-burnable = Light Grey
-    rgb_image[fire_map == 10] = [220, 255, 220] # Grass = Light Green
-    rgb_image[fire_map == 20] = [150, 200, 150] # Shrub = Green
-    rgb_image[fire_map == 30] = [0, 100, 0]     # Forest = Dark Green
-    rgb_image[fire_map == 40] = [255, 100, 0]   # Burning = Bright Orange
-    rgb_image[fire_map == 50] = [40, 40, 40]       # Burnt = Dark Grey
+    
+    # Define the correct, fiery color scheme
+    # Using your original values: 0=Non-Burnable, 10=Grass, 20=Shrub, 30=Forest, 40=Burning, 50=Burned
+    
+    rgb_image[fire_map == 0] = [200, 200, 200]    # Non-burnable = Light Grey
+    rgb_image[fire_map == 10] = [220, 255, 220]   # Grass = Light Green
+    rgb_image[fire_map == 20] = [150, 200, 150]   # Shrub = Green
+    rgb_image[fire_map == 30] = [0, 100, 0]       # Forest = Dark Green
+    rgb_image[fire_map == 40] = [255, 69, 0]      # Burning = FIERY ORANGE-RED
+    rgb_image[fire_map == 50] = [40, 40, 40]         # Burnt = Dark Grey / Ash
+    
     return rgb_image
+
 
 def display_details_page():
     st.header("Project Details & Methodology")
