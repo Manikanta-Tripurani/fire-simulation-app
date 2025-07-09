@@ -1,6 +1,6 @@
 # ==============================================================================
-# FINAL, WORKING APP.PY SCRIPT (v14)
-# THIS VERSION HAS THE CORRECT LAYOUT FOR THE SIMULATION RESULT.
+# FINAL, WORKING APP.PY SCRIPT (v15)
+# THIS VERSION IS FAST AND VISUALLY CORRECT.
 # ==============================================================================
 
 # --- 1. IMPORTS ---
@@ -32,6 +32,7 @@ def load_data():
 
 def create_rgb_image(fire_map):
     rgb_image = np.zeros((fire_map.shape[0], fire_map.shape[1], 3), dtype=np.uint8)
+    # Correct, fiery color scheme
     rgb_image[fire_map == 0] = [200, 200, 200]
     rgb_image[fire_map == 10] = [220, 255, 220]
     rgb_image[fire_map == 20] = [150, 200, 150]
@@ -39,11 +40,6 @@ def create_rgb_image(fire_map):
     rgb_image[fire_map == 40] = [255, 69, 0]
     rgb_image[fire_map == 50] = [40, 40, 40]
     return rgb_image
-
-def create_legend():
-    st.subheader("Map Legend")
-    legend_html = """...""" # Your legend HTML here
-    st.markdown(legend_html, unsafe_allow_html=True)
 
 # ==========================================================
 # PASTE THIS COMPLETE FUNCTION INTO YOUR APP.PY
@@ -87,18 +83,15 @@ def display_prediction_page():
 
 def display_simulation_page():
     st.header("Objective 2: AI-Powered Fire Spread Simulation")
-    
     with st.sidebar:
         st.header("Parameters")
         num_steps = st.slider("Simulation Steps (hours)", 5, 50, 20)
-        ignition_probability_threshold = st.slider("AI Ignition Threshold", 0.10, 0.90, 0.60)
+        ignition_probability_threshold = st.slider("AI Ignition Threshold", 0.10, 0.90, 0.30)
 
     col1, col2 = st.columns([1, 2])
     with col1:
         st.subheader("Control Panel")
         start_button = st.button("Start Simulation", type="primary")
-        st.markdown("---")
-        # create_legend() # You can add the legend here
 
     if start_button:
         fuel, slope, aspect, model, profile = load_data()
@@ -108,60 +101,57 @@ def display_simulation_page():
             fire_map = fuel.copy()
             ignition_row, ignition_col = 1500, 1500
             fire_map[ignition_row-5:ignition_row+5, ignition_col-5:ignition_col+5] = 40
+            
             frames = []
             map_height, map_width = fire_map.shape
 
             for step in range(num_steps):
                 frames.append(create_rgb_image(fire_map))
                 
-                # Create a copy to calculate the next state
-                next_fire_map = fire_map.copy()
+                # --- THIS IS YOUR EFFICIENT AND NOW CORRECT LOGIC ---
+                # 1. Find all cells that are currently burning
+                burning_cells = np.argwhere(fire_map == 40)
                 
-                # Iterate through every cell to determine its next state
-                for r in range(map_height):
-                    for c in range(map_width):
-                        if fire_map[r, c] == 40:
-                            next_fire_map[r, c] = 50
-                            continue
-                        
-                        if fire_map[r, c] in [10, 20, 30]:
-                            for dr in [-1, 0, 1]:
-                                for dc in [-1, 0, 1]:
-                                    if dr == 0 and dc == 0: continue
-                                    nr, nc = r + dr, c + dc
-                                    
-                                    if 0 <= nr < map_height and 0 <= nc < map_width and fire_map[nr, nc] == 40:
-                                        features = [[slope[r, c], aspect[r, c], fuel[r, c]]]
-                                        prediction_prob = model.predict_proba(features)[0][1]
-                                        
-                                        if prediction_prob > ignition_probability_threshold:
-                                            next_fire_map[r, c] = 40
-                                            break
-                            if next_fire_map[r, c] == 40:
-                                continue
+                # 2. Find all neighbors of burning cells that will catch fire
+                to_ignite = set() # Use a set to prevent duplicates
+                for r, c in burning_cells:
+                    for dr in [-1, 0, 1]:
+                        for dc in [-1, 0, 1]:
+                            if dr == 0 and dc == 0: continue
+                            nr, nc = r + dr, c + dc
+                            
+                            # Check if neighbor is valid AND is burnable fuel
+                            if 0 <= nr < map_height and 0 <= nc < map_width and fire_map[nr, nc] in [10, 20, 30]:
+                                features = [[slope[nr, nc], aspect[nr, nc], fuel[nr, nc]]]
+                                prediction_prob = model.predict_proba(features)[0][1]
+                                
+                                if prediction_prob > ignition_probability_threshold:
+                                    to_ignite.add((nr, nc))
                 
-                fire_map = next_fire_map
-        
-        # --- THIS IS THE CORRECTED LAYOUT LOGIC ---
-        # All display elements are now outside the spinner
+                # 3. Update the map all at once for the next step. This is the critical fix.
+                # First, set the cells that were burning to "burnt"
+                if burning_cells.size > 0:
+                    fire_map[burning_cells[:, 0], burning_cells[:, 1]] = 50
+                # Then, set the new cells to "burning"
+                if to_ignite:
+                    rows, cols = zip(*to_ignite)
+                    fire_map[rows, cols] = 40
 
-        # 1. Update the Control Panel (col1)
-        with col1:
-            st.success("Simulation Complete!")
-            gif_path = 'fire_simulation.gif'
-            imageio.mimsave(gif_path, frames, fps=3)
-            with open(gif_path, "rb") as file:
-                st.download_button("Download Simulation GIF", file, "fire_simulation.gif", "image/gif")
-            # You can add the GeoTiff download button here as well
-
-        # 2. Update the Simulation Result Panel (col2)
+        # --- AFTER THE LOOP, DISPLAY RESULTS ---
+        col1.success("Simulation Complete!")
+        gif_path = 'fire_simulation.gif'
+        imageio.mimsave(gif_path, frames, fps=3)
         with col2:
             st.subheader("Simulation Result")
             st.image(gif_path)
 
+        with col1:
+            with open(gif_path, "rb") as file:
+                st.download_button("Download Simulation GIF", file, "fire_simulation.gif", "image/gif")
+            # (GeoTiff download code can be added here)
 
 # --- 5. MAIN APP NAVIGATION ---
-# This part remains the same and is known to work correctly.
+# This part is stable and correct.
 if 'view' not in st.session_state: st.session_state.view = "Project Details"
 def set_view(): st.session_state.view = st.session_state.radio_view
 view_options = ("Project Details", "Fire Risk Prediction", "Fire Spread Simulation")
