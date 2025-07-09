@@ -59,7 +59,7 @@ def display_prediction_view():
     """)
     try:
         prediction_image = Image.open('prediction_map.png')
-        st.image(prediction_image, caption='Fire Risk Prediction Map', use_column_width=True)
+        st.image(prediction_image, caption='Fire Risk Prediction Map', use_container_width=True)
     except FileNotFoundError:
         st.error("Error: `prediction_map.png` not found. Please complete Step 1 of the instructions.")
 
