@@ -5,3 +5,4 @@ joblib
 rasterio
 imageio
 Pillow
+matplotlib
